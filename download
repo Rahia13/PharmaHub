@@ -1,0 +1,7 @@
+
+DATABASE_URL="postgresql://neondb_owner:npg_vBGTgm6AR5kp@ep-crimson-bread-b54qr60r.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+AUTH_SECRET="[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))"
+
+
+STORAGE_DIR="./storage"
