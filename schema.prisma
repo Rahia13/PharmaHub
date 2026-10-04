@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  phone         String
+  passwordHash  String
+  role          String         @default("customer") // customer | pharmacist | admin
+  createdAt     DateTime       @default(now())
+  addresses     Address[]
+  orders        Order[]
+  prescriptions Prescription[]
+  reviews       Review[]
+}
+
+model Address {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String   // "Home" | "Office"
+  recipientName String
+  addressLine   String
+  phone         String
+  isDefault     Boolean  @default(false)
+  orders        Order[]
+
+  @@index([userId])
+}
+
+model Product {
+  id                   String      @id
+  slug                 String      @unique
+  name                 String
+  genericGroup         String
+  manufacturer         String
+  brand                String
+  category             String
+  image                String
+  rating               Float
+  reviewCount          Int
+  price                Int         // BDT, whole taka
+  originalPrice        Int
+  discountPercent      Int
+  badge                String?
+  inStock              Boolean
+  stockCount           Int?
+  requiresPrescription Boolean
+  composition          String?
+  dosage               String?
+  description          String?
+  isFlash              Boolean     @default(false)
+  isPopular            Boolean     @default(false)
+  orderItems           OrderItem[]
+  reviews              Review[]
+
+  @@index([category])
+}
+
+model Order {
+  id             String       @id @default(cuid())
+  code           String       @unique // human-friendly, e.g. PH-69501700
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  addressId      String
+  address        Address      @relation(fields: [addressId], references: [id])
+  status         String       @default("placed") // placed | processing | out-for-delivery | delivered
+  paymentMethod  String       // cod | bkash | nagad | card
+  subtotal       Int
+  discount       Int          @default(0)
+  deliveryCharge Int
+  total          Int
+  promoCode      String?
+  riderName      String?
+  riderPhone     String?
+  prescriptionId String?
+  prescription   Prescription? @relation(fields: [prescriptionId], references: [id])
+  createdAt      DateTime     @default(now())
+  items          OrderItem[]
+  events         OrderEvent[]
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String  // snapshot at purchase time
+  image     String
+  unitPrice Int     // snapshot at purchase time
+  quantity  Int
+}
+
+model OrderEvent {
+  id      String   @id @default(cuid())
+  orderId String
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status  String
+  at      DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model Prescription {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileSize    Int
+  fileType    String
+  storageKey  String?  // key of the stored file (see lib/storage.ts)
+  patientName String
+  notes       String   @default("")
+  status      String   @default("pending") // pending | approved | rejected
+  rejectionReason String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  createdAt   DateTime @default(now())
+  orders      Order[]
+
+  @@index([userId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int      // 1..5
+  comment   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, userId]) // one review per customer per product
+  @@index([productId, createdAt])
+}
